@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask-SocketIO Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+</head>
+<body>
+    <h1>Chat Room</h1>
+    <ul id="messages"></ul>
+    <input id="message" autocomplete="off"><button id="btn">Send</button>
+
+    <script type="text/javascript">
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('connect', function() {
+            console.log('Connected');
+        });
+
+        socket.on('message', function(msg) {
+            let li = document.createElement("li");
+            li.appendChild(document.createTextNode(msg));
+            document.getElementById("messages").appendChild(li);
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('message');
+            const msg = input.value;
+            socket.send(msg);
+            input.value = '';
+        }
+        function keyPress(e){
+            if(e.key == "Enter"){
+                sendMessage();
+            }
+        }
+
+        document.getElementById("message").addEventListener("keypress", keyPress);
+        document.getElementById("btn").addEventListener("click", sendMessage);
+    </script>
+</body>
+</html>
