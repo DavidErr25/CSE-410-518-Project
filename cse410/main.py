@@ -1,30 +1,42 @@
 from flask import Flask, render_template,  request
 from flask_socketio import SocketIO, join_room, leave_room
 from collections import defaultdict
+from flask_login import LoginManager
 
-LOCAL_DEV_FLAG = True
+LOCAL_DEV_FLAG = False
 
 HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
-SSL_CONTEXT=('cert.pem', 'key.pem')
-# password is 709505
+SSL_CONTEXT=('cert.pem', 'key.pem') # password is 709505
 
 app = Flask(__name__)
+login_manager = LoginManager()
+login_manager.init_app(app)
 app.config['SECRET_KEY'] = 'secret!'  # Necessary for sessions, can be any string
 socketio = SocketIO(app, ssl_context=SSL_CONTEXT)
 
-# from Crypto.PublicKey import RSA
-# key = RSA.generate(2048)
-# private_key = key.export_key()
-# print("Private Key:")
-# print(private_key.decode())
-# public_key = key.publickey().export_key()
-# print("\nPublic Key:")
-# print(public_key.decode())
+@login_manager.user_loader
+def load_user(user_id):
+    return User.get(user_id)
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+@app.route("/login")
+def login():
+    return render_template("login.html")
 
 # Serve the chat page
-@app.route('/')
-def index():
+@app.route('/chat/<string:room>')
+def chat():
     return render_template('chat.html')
+
+
+
+
+
+
+
 
 # Handle messages
 @socketio.on('message')
