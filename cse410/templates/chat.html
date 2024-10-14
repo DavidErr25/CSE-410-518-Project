@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask-SocketIO Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsencrypt@3.3.2/bin/jsencrypt.min.js"></script> 
+    <!-- ^ RSA -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- ^ AES -->
+</head>
+<body>
+    <h1>Chat Room</h1>
+    <ul id="messages"></ul>
+    <input id="message" autocomplete="off"><button id="btn">Send</button>
+
+    <script type="text/javascript">
+        // Ensure CryptoJS is included in your project (via CDN or installed via npm)
+        // import CryptoJS from "crypto-js";
+
+
+        const VERBOSE_LOGGING = true;
+        function verbose_log(...args){
+            if(VERBOSE_LOGGING)
+                console.log(...args);
+        }
+
+        // RSA
+        function encrypt_object_with_key(key, data, do_stringify = true){
+            const json = do_stringify ? JSON.stringify(data) : data;
+            crypt.setPublicKey(key);
+            const encrypted = crypt.encrypt(json);
+            return encrypted;
+        }
+        function decrypt_object_with_key(key, data){
+            crypt.setPrivateKey(key);
+            const decrypted = crypt.decrypt(data);
+            return decrypted;
+        }
+
+        // AES
+        function generateAESKey() {
+            // Generate a random 256-bit key for AES (32 bytes = 256 bits)
+            const key = CryptoJS.lib.WordArray.random(32);  // 256 bits AES key
+            return key.toString(CryptoJS.enc.Base64);  // Return base64 string
+        }
+        
+        function encryptAES(key, plainText) {
+            const encrypted = CryptoJS.AES.encrypt(plainText, key).toString();
+            return encrypted;
+        }
+        // Function to decrypt an encrypted message
+        function decryptAES(key, encryptedText) {
+            const decrypted = CryptoJS.AES.decrypt(encryptedText, key);
+            const decryptedText = decrypted.toString(CryptoJS.enc.Utf8);
+            return decryptedText;
+        }
+
+
+        
+        const crypt = new JSEncrypt({default_key_size: 1024});
+        // const crypt = new JSEncrypt({default_key_size: 2048});
+        const keys = {public: crypt.getPublicKey(), private: crypt.getPrivateKey()};
+        window.keys = keys;
+        const data = decrypt_object_with_key(window.keys.private, encrypt_object_with_key(window.keys.public, "Hello, World!"));
+        console.log(data);
+
+
+        verbose_log(`Public key: ${keys.public}`);
+        verbose_log(`Private key: ${keys.private}`);
+
+        var socket = io.connect('wss://' + document.domain + ':' + location.port);
+
+        socket.on('connect', function() {
+            console.log('Connected');
+            
+            socket.emit("join_room", {
+                "room": "room_A",
+                "public_key": window.keys.public,
+            });
+        });
+
+        socket.on('new_member', function(data) {
+            const {id, room, count, key} = data;
+            verbose_log(id, room, count);
+            if(count == 1){ // Only member
+                window.room_key = generateAESKey();
+                console.log(window.room_key);
+                return;
+            }
+            if(socket.id == id){return;}
+            if(!window.room_key){
+                return; // Another new member?
+                // TODO: FIXME: Must handle this case eventually
+            }
+            socket.emit("for", {
+                id,
+                data: encrypt_object_with_key(key, window.room_key, false)
+            })
+        });
+
+        socket.on('message', function(data) {
+            const msg = decryptAES(window.room_key, data);
+
+            let li = document.createElement("li");
+            li.appendChild(document.createTextNode(msg));
+            document.getElementById("messages").appendChild(li);
+        });
+
+        socket.on("room_key", function(encrypted_key){
+            window.room_key = decrypt_object_with_key(window.keys.private, encrypted_key);
+        })
+
+        function sendMessage() {
+            const input = document.getElementById('message');
+            const msg = input.value;
+            socket.send(encryptAES(window.room_key, msg));
+            input.value = '';
+        }
+        function keyPress(e){
+            if(e.key == "Enter"){
+                sendMessage();
+            }
+        }
+
+        document.getElementById("message").addEventListener("keypress", keyPress);
+        document.getElementById("btn").addEventListener("click", sendMessage);        
+    </script>
+</body>
+</html>
