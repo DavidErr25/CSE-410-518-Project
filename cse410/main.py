@@ -1,17 +1,24 @@
-from flask import Flask, render_template,  request
+from flask import Flask, render_template, request, redirect, url_for
 from flask_socketio import SocketIO, join_room, leave_room
 from collections import defaultdict
-from flask_login import LoginManager
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+
+from user import User
 
 LOCAL_DEV_FLAG = False
 
 HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
+SECRET = "709505"
 SSL_CONTEXT=('cert.pem', 'key.pem') # password is 709505
 
 app = Flask(__name__)
+app.secret_key = SECRET
+
 login_manager = LoginManager()
 login_manager.init_app(app)
-app.config['SECRET_KEY'] = 'secret!'  # Necessary for sessions, can be any string
+login_manager.login_view = 'login' 
+
+app.config['SECRET_KEY'] = SECRET # Necessary for sessions, can be any string
 socketio = SocketIO(app, ssl_context=SSL_CONTEXT)
 
 @login_manager.user_loader
@@ -22,9 +29,27 @@ def load_user(user_id):
 @app.route("/")
 def index():
     return render_template("index.html")
-@app.route("/login")
+@app.route("/login", methods=["GET","POST"])
 def login():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+        user = User.attempt_authentication(username, password)
+        if user is not None:
+            login_user(user)
+            return redirect(url_for("protected"))
     return render_template("login.html")
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+
+@app.route('/protected')
+@login_required
+def protected():
+    return f'Logged in as: {current_user.username}'
 
 # Serve the chat page
 @app.route('/chat/<string:room>')
