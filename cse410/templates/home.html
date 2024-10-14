@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homepage | {{user.username}}</title>
+</head>
+<body>
+    <h1>Welcome {{user.username}}</h1>
+    <p>Your room is <a href="/chat/{{user.id}}">here</a></p>
+
+    <p>Friends</p>
+    <ul id="friends"></ul>
+    <data-friends hidden>{{user.get_friends()}}</data-friends>
+    <script>
+        const friend_text = document.querySelector("data-friends").textContent.replaceAll("'",'"')
+        const friend_ids = JSON.parse(friend_text);
+        const list = document.getElementById("friends");
+        for(let friend_id of friend_ids){
+            const item = document.createElement("li");
+            const link = document.createElement("a");
+            link.textContent = friend_id;
+            link.href = `/chat/${friend_id}`;
+            item.append(link);
+            list.append(item);
+        }
+    </script>
+
+    <form action="/invite" method="POST">
+        <p>Add friend</p>
+        <input type="text" name="username" id="username" placeholder="Username">
+    </form>
+</body>
+</html>

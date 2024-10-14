@@ -8,7 +8,7 @@ def hash(password_string):
     return hash
 
 def test_password(plaintext, hashed):
-    return bcrypt.checkpw(plaintext, hashed)
+    return bcrypt.checkpw(plaintext.encode("utf-8"), hashed)
 
 def sql_to_dict(columns, sql_output):
     return [{k:v for k,v in zip(columns, entry)} for entry in sql_output]
