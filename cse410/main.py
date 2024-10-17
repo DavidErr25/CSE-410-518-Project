@@ -5,7 +5,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 from user import User
 
-LOCAL_DEV_FLAG = True
+LOCAL_DEV_FLAG = False
 
 HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
 SECRET = "709505"
@@ -102,8 +102,13 @@ def chat(host_uid):
 # Handle messages
 @socketio.on('message')
 def handle_message(msg):
-    print('Message:',msg)
-    socketio.emit("message", msg, room=socket_to_room[request.sid])  # Broadcast the message to all connected clients in the room (encrypted with AES)
+    sender = current_user.username
+    message_data = {
+        'message': msg,
+        'sender': sender
+    }
+    print('Message:', message_data)
+    socketio.emit("message", message_data, room=socket_to_room[request.sid])  # Broadcast the message to all connected clients in the room (encrypted with AES)
 
 @socketio.on("connection")
 def connection():
@@ -154,4 +159,8 @@ def gone():
             room_members[room].remove(request.sid)
 
 if __name__ == '__main__':
-    socketio.run(app, host=HOST, debug=True, ssl_context=SSL_CONTEXT)
+    if LOCAL_DEV_FLAG:
+        # No SSL context for local development, change var above for local dev
+        socketio.run(app, host=HOST, debug=True)
+    else:
+        socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)
