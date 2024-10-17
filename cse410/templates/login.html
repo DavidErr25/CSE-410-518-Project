@@ -4,12 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <link rel="stylesheet" href="../css/login.css">
 </head>
 <body>
-    <form method="POST" action="/login">
-        <input type="text" name="username" id="username">
-        <input type="password" name="password" id="password">
-        <input type="submit" value="Login!">
-    </form>
+    <div class="login-container">
+      <div class="form-boxes">
+
+            <div class="login-box">
+                <h2>Login</h2>
+                <form method="POST" action="/login">
+                    <div class="input-group">
+                        <label for="username-login">Username</label>
+                        <input type="text" name="username" id="username-login" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="password-login">Password</label>
+                        <input type="password" name="password" id="password-login" required>
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+
+            <div class="register-box">
+                <h2>Register</h2>
+                <form method="POST" action="/register">
+                    <div class="input-group">
+                        <label for="username-register">Username</label>
+                        <input type="text" name="username" id="username-register" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="password-register">Password</label>
+                        <input type="password" name="password" id="password-register" required>
+                    </div>
+                    <button type="submit">Register</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

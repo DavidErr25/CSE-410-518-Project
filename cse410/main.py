@@ -62,12 +62,12 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
         if User.get_by_username(username):
-            return render_template("register.html", error="Username taken")
+            return render_template("login.html", error="Username taken")
         # TODO: Make a password policy
         user = User.create(username, password)
         login_user(user)
         return redirect(request.args.get('next') or url_for("home"))
-    return render_template("register.html")
+    return render_template("login.html")
 
 @app.route("/invite", methods=["POST"])
 def invite():

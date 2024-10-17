@@ -9,12 +9,14 @@
     <!-- ^ RSA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <!-- ^ AES -->
+    <link rel="stylesheet" href="../css/chat.css">
 </head>
 <body>
     <h1>Chat Room</h1>
     <p>Host: {{room}}</p>
     <ul id="messages"></ul>
-    <input id="message" autocomplete="off"><button id="btn">Send</button>
+    <input id="message" autocomplete="off">
+    <button id="btn">Send</button>
 
     <script type="text/javascript">
         // Ensure CryptoJS is included in your project (via CDN or installed via npm)

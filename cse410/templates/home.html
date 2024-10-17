@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Homepage | {{user.username}}</title>
+    <link rel="stylesheet" href="../css/home.css">
 </head>
 <body>
     <h1>Welcome {{user.username}}</h1>
@@ -29,6 +30,7 @@
     <form action="/invite" method="POST">
         <p>Add friend</p>
         <input type="text" name="username" id="username" placeholder="Username">
+        <button>Send Request</button>
     </form>
 </body>
 </html>
