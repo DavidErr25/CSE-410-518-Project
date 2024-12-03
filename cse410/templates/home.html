@@ -26,7 +26,8 @@
             list.append(item);
         }
     </script>
-
+    <p id="error" style="color: red"></p>
+    <script>if(location.search.includes("locked")) document.getElementById("error").textContent = "Sorry, this room is locked!";</script>
     <form action="/invite" method="POST">
         <p>Add friend</p>
         <input type="text" name="username" id="username" placeholder="Username">

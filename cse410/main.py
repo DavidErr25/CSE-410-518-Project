@@ -137,7 +137,12 @@ def chat(host_uid):
     # TODO: Allow host to lock rooms
     if not is_authorized_to_chat(host_uid, current_user):
         return redirect("/home")
-    return render_template('chat.html', room=host_uid, friends=current_user.get_friends())
+    if host_uid in locked_rooms:
+        print("app checking accesss.")
+        print(current_user.id, locked_rooms[host_uid])
+        if current_user.id not in locked_rooms[host_uid]:
+            return redirect("/home?locked")
+    return render_template('chat.html', room=host_uid, you=current_user.id, friends=current_user.get_friends())
 
 # Handle messages
 @socketio.on('message')
@@ -157,11 +162,35 @@ def handle_message(msg):
     print('Message:', message_data)
     socketio.emit("message", message_data, room=socket_to_room[request.sid])  # Broadcast the message to all connected clients in the room (encrypted with AES)
 
-@socketio.on("connection")
+socket_to_uid = {}
+@socketio.on("connect")
 def connection():
+    print("Connection!\n"*10)
+    global socket_to_uid
+    socket_to_uid[request.sid] = current_user.id
+    print(f"Connection: {socket_to_uid}")
     with activity_lock:
         last_activity[request.sid] = time.time()
     socketio.emit("upgrade-to-secure", )
+
+locked_rooms = {}
+@socketio.on("lock_room")
+def lock_room():
+    # print(socket_to_uid)
+    current_room = socket_to_room[request.sid]
+    if current_user.id == current_room:
+        current_users = set(map(lambda sid: socket_to_uid[sid], room_members[current_room]))
+        print(f"Locking room {current_room}")
+        print(f"Users: {current_users}")
+        if current_room not in locked_rooms:
+            locked_rooms[current_room] = current_users
+@socketio.on("unlock_room")
+def lock_room():
+    current_room = socket_to_room[request.sid]
+    print(f"Unlocking room {current_room}")
+    if current_user.id == current_room: # rooms are named after host
+        if current_room in locked_rooms:
+            del locked_rooms[current_room]
 
 room_members = defaultdict(list)
 socket_to_room = {}
@@ -171,6 +200,11 @@ def join(data):
     if not is_authorized_to_chat(room, current_user):
         print("\n\n\nUnauthorized\n\n\n")
         return disconnect()
+    if room in locked_rooms:
+        print("Checking access")
+        print(locked_rooms[room], current_user.id)
+        if current_user.id not in locked_rooms[room]:
+            return disconnect()
     # TODO: Remove socket from all other rooms
     room_members[room].append(request.sid)
 
@@ -180,7 +214,7 @@ def join(data):
     print(id, room, public_key)
 
     join_room(room)
-    socketio.emit('new_member', {"id": request.sid, "room": room, "count": len(room_members[room]), "key": public_key}, room=room)
+    socketio.emit('new_member', {"id": request.sid, "room": room, "count": len(room_members[room]), "key": public_key, "locked": (room in locked_rooms) }, room=room)
 
 @socketio.on("leave_room")
 def leave(data):
