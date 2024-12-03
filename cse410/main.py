@@ -3,13 +3,17 @@ from flask_socketio import SocketIO, join_room, leave_room, disconnect
 from collections import defaultdict
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
+import os
+import secrets
+from dotenv import load_dotenv
+load_dotenv()
+
 from user import User
+from util import rate_limit
 
-LOCAL_DEV_FLAG = False
-
-HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
-SECRET = "709505"
-SSL_CONTEXT = ('cert.pem', 'key.pem') # password is 709505
+HOST = "0.0.0.0"
+SECRET = os.getenv('SECRET')
+SSL_CONTEXT = ('cert.pem', 'key.pem')
 
 app = Flask(__name__)
 app.secret_key = SECRET
@@ -20,6 +24,13 @@ login_manager.login_view = 'login'
 
 app.config['SECRET_KEY'] = SECRET # Necessary for sessions, can be any string
 socketio = SocketIO(app, ssl_context=SSL_CONTEXT)
+
+#store room tokens 
+room_tokens = {}
+
+#create tokens
+def generate_secure_token():
+    return secrets.token_urlsafe(16) 
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -38,14 +49,9 @@ def login():
     if request.method == "POST":
         username = request.form['username']
         password = request.form['password']
-        if password == "VerySecure":
-            user = User.get_by_username(username)
-            if user is not None:
-                login_user(user)
-        else:
-            user = User.attempt_authentication(username, password)
-            if user is not None:
-                login_user(user)
+        user = User.attempt_authentication(username, password)
+        if user is not None:
+            login_user(user)
         if user is not None:
             return redirect(request.args.get('next') or url_for("home"))
     return render_template("login.html")
@@ -55,19 +61,28 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+'''
+Password Policy:
 
+Minimum eight characters, at least one uppercase letter,
+one lowercase letter, one number and one special character:
+'''
+PASSWORD_POLICY = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+import re
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        if not re.search(PASSWORD_POLICY, password):
+            return render_template("login.html", error="Your password must conform: Minimum eight characters, at least one uppercase letter, one lowercase letter, one number and one special character")
         if User.get_by_username(username):
             return render_template("login.html", error="Username taken")
         # TODO: Make a password policy
         user = User.create(username, password)
         login_user(user)
         return redirect(request.args.get('next') or url_for("home"))
-    return render_template("login.html")
+    return render_template("login.html", error="")
 
 @app.route("/invite", methods=["POST"])
 def invite():
@@ -91,16 +106,37 @@ def is_authorized_to_chat(host_uid, other):
     return False
 
 # Serve the chat page
-@app.route('/chat/<string:host_uid>')
+@app.route('/chat/<string:token>')
 @login_required
-def chat(host_uid):
-    # TODO: Allow host to lock rooms
-    if not is_authorized_to_chat(host_uid, current_user):
+def chat(token):
+    # Validate the token
+    if token not in room_tokens or not is_authorized_to_chat(room_tokens[token], current_user):
         return redirect("/home")
-    return render_template('chat.html', room=host_uid, friends=current_user.get_friends())
+    
+    # Get the host UID from the token
+    host_uid = room_tokens[token]
+    return render_template('chat.html', room=token, friends=current_user.get_friends())
+
+@app.route('/start_chat', methods=['POST'])
+@login_required
+def start_chat():
+    # Assuming the request contains the friend's username
+    friend_username = request.form['username']
+    friend = User.get_by_username(friend_username)
+    
+    if not friend or not is_authorized_to_chat(current_user.id, friend):
+        return redirect("/home")
+    
+    # Generate a token and store the mapping
+    token = generate_secure_token()
+    room_tokens[token] = current_user.id
+    
+    return redirect(url_for('chat', token=token))
+
 
 # Handle messages
 @socketio.on('message')
+@rate_limit(10)
 def handle_message(msg):
     sender = current_user.username
     message_data = {
@@ -118,20 +154,17 @@ room_members = defaultdict(list)
 socket_to_room = {}
 @socketio.on("join_room")
 def join(data):
-    room = data['room']
-    if not is_authorized_to_chat(room, current_user):
-        print("\n\n\nUnauthorized\n\n\n")
+    token = data['room']
+    if token not in room_tokens or not is_authorized_to_chat(room_tokens[token], current_user):
         return disconnect()
-    # TODO: Remove socket from all other rooms
-    room_members[room].append(request.sid)
+    
+    # Use the token for room management
+    room_members[token].append(request.sid)
+    socket_to_room[request.sid] = token
+    
+    join_room(token)
+    socketio.emit('new_member', {"id": request.sid, "room": token}, room=token)
 
-    public_key = data['public_key']
-    id = request.sid
-    socket_to_room[id] = room
-    print(id, room, public_key)
-
-    join_room(room)
-    socketio.emit('new_member', {"id": request.sid, "room": room, "count": len(room_members[room]), "key": public_key}, room=room)
 
 @socketio.on("leave_room")
 def leave(data):
@@ -159,8 +192,4 @@ def gone():
             room_members[room].remove(request.sid)
 
 if __name__ == '__main__':
-    if LOCAL_DEV_FLAG:
-        # No SSL context for local development, change var above for local dev
-        socketio.run(app, host=HOST, debug=True)
-    else:
-        socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)
+    socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)

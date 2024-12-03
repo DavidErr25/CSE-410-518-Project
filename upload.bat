@@ -1,1 +1,0 @@
-scp -r ./* jackdunf@timberlake.cse.buffalo.edu:~/public_html/SecureChat
