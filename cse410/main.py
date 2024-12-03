@@ -3,13 +3,16 @@ from flask_socketio import SocketIO, join_room, leave_room, disconnect
 from collections import defaultdict
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
 from user import User
 
-LOCAL_DEV_FLAG = True
-
-HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
-SECRET = "709505"
-SSL_CONTEXT = ('cert.pem', 'key.pem') # password is 709505
+HOST = "0.0.0.0"
+SECRET = os.getenv('SECRET')
+SSL_CONTEXT = ('cert.pem', 'key.pem')
 
 app = Flask(__name__)
 app.secret_key = SECRET
