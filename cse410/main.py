@@ -5,7 +5,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 from user import User
 
-LOCAL_DEV_FLAG = False
+LOCAL_DEV_FLAG = True
 
 HOST = "localhost" if LOCAL_DEV_FLAG else "128.205.36.18"
 SECRET = "709505"
@@ -55,19 +55,28 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+'''
+Password Policy:
 
+Minimum eight characters, at least one uppercase letter,
+one lowercase letter, one number and one special character:
+'''
+PASSWORD_POLICY = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+import re
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        if not re.search(PASSWORD_POLICY, password):
+            return render_template("login.html", error="Your password must conform: Minimum eight characters, at least one uppercase letter, one lowercase letter, one number and one special character")
         if User.get_by_username(username):
             return render_template("login.html", error="Username taken")
         # TODO: Make a password policy
         user = User.create(username, password)
         login_user(user)
         return redirect(request.args.get('next') or url_for("home"))
-    return render_template("login.html")
+    return render_template("login.html", error="")
 
 @app.route("/invite", methods=["POST"])
 def invite():
