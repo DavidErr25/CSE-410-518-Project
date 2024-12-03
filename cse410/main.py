@@ -166,8 +166,4 @@ def gone():
             room_members[room].remove(request.sid)
 
 if __name__ == '__main__':
-    if LOCAL_DEV_FLAG:
-        # No SSL context for local development, change var above for local dev
-        socketio.run(app, host=HOST, debug=True)
-    else:
-        socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)
+    socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)
