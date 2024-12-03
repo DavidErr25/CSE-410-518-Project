@@ -17,11 +17,36 @@
     <ul id="messages"></ul>
     <input id="message" autocomplete="off">
     <button id="btn">Send</button>
+    <p class="host"><button id="lock-toggle">🔒</button></p>
 
     <script type="text/javascript">
         // Ensure CryptoJS is included in your project (via CDN or installed via npm)
         // import CryptoJS from "crypto-js";
-
+        let _locked = false;
+        function getLocked(){
+            return _locked;
+        }
+        function setLocked(isLocked){
+            _locked = isLocked;
+            document.getElementById("lock-toggle").textContent = isLocked ? "🔓" : "🔒";
+            if(isLocked){
+                console.log("Setting locked...")
+                if(socket)
+                    socket.emit("lock_room");
+                document.getElementById("lock-toggle").onclick = setLocked.bind(null, false);
+            } else {
+                console.log("Setting unlocked...")
+                if(socket)
+                    socket.emit("unlock_room");
+                document.getElementById("lock-toggle").onclick = setLocked.bind(null, true);
+            }
+        }
+        setLocked(false);
+        if("{{room}}" != "{{you}}"){
+            [...document.querySelectorAll(".host")].forEach(el=>{
+                el.style.display = "none";
+            });
+        }
 
         const VERBOSE_LOGGING = true;
         function verbose_log(...args){
@@ -92,7 +117,8 @@
         })
 
         socket.on('new_member', function(data) {
-            const {id, room, count, key} = data;
+            const {id, room, count, key, locked} = data;
+            setLocked(locked);
             verbose_log(id, room, count);
             if(count == 1){ // Only member
                 window.room_key = generateAESKey();
