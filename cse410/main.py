@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from user import User
+from util import rate_limit
 
 HOST = "0.0.0.0"
 SECRET = os.getenv('SECRET')
@@ -108,6 +109,7 @@ def chat(host_uid):
 
 # Handle messages
 @socketio.on('message')
+@rate_limit(10)
 def handle_message(msg):
     sender = current_user.username
     message_data = {
