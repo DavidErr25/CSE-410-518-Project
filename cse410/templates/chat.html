@@ -85,6 +85,11 @@
                 "public_key": window.keys.public,
             });
         });
+        socket.on("custom-kill", function(){
+            console.log("Received kill signal");
+            socket.disconnect();
+            location.assign("/timeout");
+        })
 
         socket.on('new_member', function(data) {
             const {id, room, count, key} = data;
