@@ -109,7 +109,7 @@
             const decrypt_message = decryptAES(window.room_key, data.message);
 
             let li = document.createElement("li");
-            li.innerHTML = `${data.sender}: ${decrypt_message}`;
+            li.appendChild(document.createTextNode(`${data.sender}: ${decrypt_message}`));
             document.getElementById("messages").appendChild(li);
         });
 
