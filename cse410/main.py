@@ -5,6 +5,10 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 import os
 import secrets
+import re
+import time
+from threading import Lock
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -31,15 +35,44 @@ room_tokens = {}
 #create tokens
 def generate_secure_token():
     return secrets.token_urlsafe(16) 
+INACTIVITY_TIMEOUT = 10*60
+
+last_activity = {}
+activity_lock = Lock()
+# Background task to monitor inactivity
+def monitor_inactivity():
+    while True:
+        with app.app_context():
+            print("Monitoring inactivity...")
+            now = time.time()
+            to_disconnect = []
+            
+            with activity_lock:
+                for sid, last_time in last_activity.items():
+                    if now - last_time > INACTIVITY_TIMEOUT:
+                        to_disconnect.append(sid)
+
+            for sid in to_disconnect:
+                socketio.emit("custom-kill", {"message": "Disconnected due to inactivity."}, to=sid)
+                print(f"Killed {sid}")
+                logout_user()
+                with activity_lock:
+                    last_activity.pop(sid, None)
+
+            time.sleep(10)  # Check every minute
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.get(user_id)
-
+ 
 
 @app.route("/")
 def index():
     return render_template("index.html")
+@app.route('/timeout')
+def timeout():
+    logout_user()
+    return render_template("timeout.html")
 @app.route("/home")
 @login_required
 def home():
@@ -139,6 +172,12 @@ def start_chat():
 @rate_limit(10)
 def handle_message(msg):
     sender = current_user.username
+    sid = request.sid
+
+    # Update the last activity timestamp
+    with activity_lock:
+        last_activity[sid] = time.time()
+
     message_data = {
         'message': msg,
         'sender': sender
@@ -148,6 +187,8 @@ def handle_message(msg):
 
 @socketio.on("connection")
 def connection():
+    with activity_lock:
+        last_activity[request.sid] = time.time()
     socketio.emit("upgrade-to-secure", )
 
 room_members = defaultdict(list)
@@ -186,10 +227,13 @@ def msg_for(data):
 
 @socketio.on("disconnect")
 def gone():
+    with activity_lock:
+        last_activity.pop(request.sid, None)
     del socket_to_room[request.sid]
     for room, members in room_members.items():
         if request.sid in members:
             room_members[room].remove(request.sid)
 
 if __name__ == '__main__':
+    socketio.start_background_task(monitor_inactivity)
     socketio.run(app, host=HOST, debug=False, ssl_context=SSL_CONTEXT)

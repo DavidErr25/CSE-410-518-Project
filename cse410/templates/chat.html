@@ -9,7 +9,7 @@
     <!-- ^ RSA -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <!-- ^ AES -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css\chat.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 </head>
 <body>
     <h1>Chat Room</h1>
@@ -85,6 +85,11 @@
                 "public_key": window.keys.public,
             });
         });
+        socket.on("custom-kill", function(){
+            console.log("Received kill signal");
+            socket.disconnect();
+            location.assign("/timeout");
+        })
 
         socket.on('new_member', function(data) {
             const {id, room, count, key} = data;
