@@ -13,7 +13,7 @@
 </head>
 <body>
     <h1>Chat Room</h1>
-    <p>Host: {{room}}</p>
+    <p>Host: {{token}}</p>
     <ul id="messages"></ul>
     <input id="message" autocomplete="off">
     <button id="btn">Send</button>
@@ -106,7 +106,7 @@
             console.log('Connected');
             
             socket.emit("join_room", {
-                "room": "{{room}}",
+                "token": "{{token}}",
                 "public_key": window.keys.public,
             });
         });
@@ -132,6 +132,7 @@
             }
             socket.emit("for", {
                 id,
+                token: "{{token}}",
                 data: encrypt_object_with_key(key, window.room_key, false)
             })
         });

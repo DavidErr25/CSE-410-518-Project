@@ -4,6 +4,7 @@ from collections import defaultdict
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 import os
+import secrets
 import re
 import time
 from threading import Lock
@@ -28,6 +29,12 @@ login_manager.login_view = 'login'
 app.config['SECRET_KEY'] = SECRET # Necessary for sessions, can be any string
 socketio = SocketIO(app, ssl_context=SSL_CONTEXT)
 
+#store room tokens 
+room_tokens = {}
+
+#create tokens
+def generate_secure_token():
+    return secrets.token_urlsafe(16) 
 INACTIVITY_TIMEOUT = 10*60
 
 last_activity = {}
@@ -94,6 +101,7 @@ Minimum eight characters, at least one uppercase letter,
 one lowercase letter, one number and one special character:
 '''
 PASSWORD_POLICY = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+import re
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -131,10 +139,15 @@ def is_authorized_to_chat(host_uid, other):
     return False
 
 # Serve the chat page
-@app.route('/chat/<string:host_uid>')
+@app.route('/chat/<string:token>')
 @login_required
-def chat(host_uid):
-    # TODO: Allow host to lock rooms
+def chat(token):
+    # Validate the token
+    if token not in room_tokens or not is_authorized_to_chat(room_tokens[token], current_user):
+        return redirect("/home")
+    
+    # Get the host UID from the token
+    host_uid = room_tokens[token]
     if not is_authorized_to_chat(host_uid, current_user):
         return redirect("/home")
     if host_uid in locked_rooms:
@@ -143,6 +156,20 @@ def chat(host_uid):
         if current_user.id not in locked_rooms[host_uid]:
             return redirect("/home?locked")
     return render_template('chat.html', room=host_uid, you=current_user.id, friends=current_user.get_friends())
+
+@app.route('/start_chat', methods=['POST'])
+@login_required
+def start_chat():
+    # Assuming the request contains the friend's username
+    friend_username = request.form['username']
+    friend = User.get_by_username(friend_username)
+    
+    if not friend or not is_authorized_to_chat(current_user.id, friend):
+        return redirect("/home")
+    token = generate_secure_token()
+    room_tokens[token] = current_user.id
+    return redirect(url_for('chat', token=token))
+    # return render_template('chat.html', room=host_uid, friends=current_user.get_friends())
 
 # Handle messages
 @socketio.on('message')
@@ -196,25 +223,23 @@ room_members = defaultdict(list)
 socket_to_room = {}
 @socketio.on("join_room")
 def join(data):
-    room = data['room']
-    if not is_authorized_to_chat(room, current_user):
+    token = data['room']
+    if token not in room_tokens:
+        return disconnect()
+    host_uid = room_tokens[token]
+    if not is_authorized_to_chat(host_uid, current_user):
         print("\n\n\nUnauthorized\n\n\n")
         return disconnect()
-    if room in locked_rooms:
-        print("Checking access")
-        print(locked_rooms[room], current_user.id)
-        if current_user.id not in locked_rooms[room]:
-            return disconnect()
     # TODO: Remove socket from all other rooms
-    room_members[room].append(request.sid)
+    room_members[token].append(request.sid)
 
     public_key = data['public_key']
     id = request.sid
-    socket_to_room[id] = room
-    print(id, room, public_key)
+    socket_to_room[id] = token
+    print(id, token, public_key)
 
-    join_room(room)
-    socketio.emit('new_member', {"id": request.sid, "room": room, "count": len(room_members[room]), "key": public_key, "locked": (room in locked_rooms) }, room=room)
+    join_room(token)
+    socketio.emit('new_member', {"id": request.sid, "room": token, "count": len(room_members[token]), "key": public_key}, room=token)
 
 @socketio.on("leave_room")
 def leave(data):
