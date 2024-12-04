@@ -20,6 +20,8 @@
     <p class="host"><button id="lock-toggle">🔒</button></p>
 
     <script type="text/javascript">
+        const isHost = "{{room}}" == "{{you}}";
+
         // Ensure CryptoJS is included in your project (via CDN or installed via npm)
         // import CryptoJS from "crypto-js";
         let _locked = false;
@@ -42,7 +44,7 @@
             }
         }
         setLocked(false);
-        if("{{room}}" != "{{you}}"){
+        if(!isHost){
             [...document.querySelectorAll(".host")].forEach(el=>{
                 el.style.display = "none";
             });
@@ -117,23 +119,22 @@
         })
 
         socket.on('new_member', function(data) {
+            console.log("NEW MEMBER!")
             const {id, room, count, key, locked} = data;
-            setLocked(locked);
+            if(!isHost) return;
+            // setLocked(locked); Don't do this
             verbose_log(id, room, count);
-            if(count == 1){ // Only member
+            console.log(`count = ${count}`);
+            if(!window.room_key){ // Host
                 window.room_key = generateAESKey();
                 console.log(window.room_key);
-                return;
             }
             if(socket.id == id){return;}
-            if(!window.room_key){
-                return; // Another new member?
-                // TODO: FIXME: Must handle this case eventually
-            }
+            console.log("Emitting for...");
             socket.emit("for", {
                 id,
                 data: encrypt_object_with_key(key, window.room_key, false)
-            })
+            });
         });
 
         socket.on('message', function(data) {
@@ -145,6 +146,7 @@
         });
 
         socket.on("room_key", function(encrypted_key){
+            console.log("Received room_key!");
             window.room_key = decrypt_object_with_key(window.keys.private, encrypted_key);
         })
 

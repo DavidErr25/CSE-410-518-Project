@@ -227,13 +227,17 @@ def leave(data):
 
 @socketio.on("for")
 def msg_for(data):
-    if not (request.sid in room_members and len(room_members[request.sid] > 0)):
-        return disconnect()
+    print("Message for")
+    if current_user.id not in room_members or len(room_members[current_user.id]) <= 0: # they are not host
+        print("Dropped")
+        return "Dropped"
+        # return disconnect()
     sid = data['id']
     key = data['data']
     print("-"*20)
     print(f"{sid}: {key}")
     print("-"*20)
+    print("Broadcasting room_key...")
     socketio.emit("room_key", key, to=sid)
 
 @socketio.on("disconnect")
