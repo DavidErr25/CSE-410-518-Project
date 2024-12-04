@@ -13,7 +13,7 @@
     <p>Friends</p>
     <ul id="friends"></ul>
     <data-friends hidden>{{user.get_friends()}}</data-friends>
-    <script>
+    <!-- <script>
         const friend_text = document.querySelector("data-friends").textContent.replaceAll("'",'"')
         const friend_ids = JSON.parse(friend_text);
         const list = document.getElementById("friends");
@@ -21,11 +21,14 @@
             const item = document.createElement("li");
             const link = document.createElement("a");
             link.textContent = friend_id;
-            link.href = `/chat/${friend_id}`;
+            // link.href = `/chat/${friend_id}`;
+            link.onclick = function(e){
+                
+            }
             item.append(link);
             list.append(item);
         }
-    </script>
+    </script> -->
     <p id="error" style="color: red"></p>
     <script>if(location.search.includes("locked")) document.getElementById("error").textContent = "Sorry, this room is locked!";</script>
     <form action="/invite" method="POST">

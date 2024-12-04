@@ -143,7 +143,11 @@ def is_authorized_to_chat(host_uid, other):
 @login_required
 def chat(token):
     # Validate the token
-    if token not in room_tokens or not is_authorized_to_chat(room_tokens[token], current_user):
+    if token not in room_tokens:
+        print("invalid token")
+        return redirect("/home")
+    if not is_authorized_to_chat(room_tokens[token], current_user):
+        print("Unauthorized")
         return redirect("/home")
     
     # Get the host UID from the token
