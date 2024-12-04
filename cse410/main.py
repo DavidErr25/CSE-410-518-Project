@@ -227,6 +227,8 @@ def leave(data):
 
 @socketio.on("for")
 def msg_for(data):
+    if not (request.sid in room_members and len(room_members[request.sid] > 0)):
+        return disconnect()
     sid = data['id']
     key = data['data']
     print("-"*20)
